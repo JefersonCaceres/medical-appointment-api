@@ -3,14 +3,14 @@ package com.jefferson.medical_appointment_api.mapper;
 
 import com.jefferson.medical_appointment_api.dto.request.MedicalDoctorRequest;
 import com.jefferson.medical_appointment_api.dto.response.MedicalDoctorResponse;
-import com.jefferson.medical_appointment_api.entity.MedicalDoctor;
+import com.jefferson.medical_appointment_api.entity.MedicalDoctorEntity;
 import org.springframework.stereotype.Component;
 
 @Component
 public class MedicalDoctorMapper {
 
-  public MedicalDoctor toEntity(MedicalDoctorRequest request) {
-    return MedicalDoctor.builder()
+  public MedicalDoctorEntity toEntity(MedicalDoctorRequest request) {
+    return MedicalDoctorEntity.builder()
         .fullName(request.fullName())
         .specialty(request.specialty())
         .phone(request.phone())
@@ -18,7 +18,7 @@ public class MedicalDoctorMapper {
         .build();
   }
 
-  public MedicalDoctorResponse toResponse(MedicalDoctor doctor) {
+  public MedicalDoctorResponse toResponse(MedicalDoctorEntity doctor) {
     return new MedicalDoctorResponse(
         doctor.getId(),
         doctor.getFullName(),

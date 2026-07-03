@@ -1,16 +1,17 @@
 package com.jefferson.medical_appointment_api.entity;
 
 import jakarta.persistence.*;
+import java.time.LocalDate;
 import lombok.*;
 
 @Entity
-@Table(name = "medical_doctors")
+@Table(name = "patients")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class MedicalDoctor {
+public class PatientEntity {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -19,12 +20,15 @@ public class MedicalDoctor {
   @Column(nullable = false, length = 100)
   private String fullName;
 
-  @Column(nullable = false, length = 100)
-  private String specialty;
+  @Column(nullable = false, unique = true, length = 30)
+  private String document;
 
-  @Column(length = 20)
+  @Column(nullable = false, length = 20)
   private String phone;
 
-  @Column(length = 150)
+  @Column(nullable = false, length = 150)
   private String email;
+
+  @Column
+  private LocalDate birthDate;
 }
