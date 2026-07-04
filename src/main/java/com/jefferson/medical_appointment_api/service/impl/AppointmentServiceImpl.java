@@ -53,6 +53,8 @@ public class AppointmentServiceImpl implements AppointmentService {
     PatientEntity patient = patientRepository.findById(request.patientId())
         .orElseThrow(() -> new ResourceNotFoundException("Patient", "id", request.patientId()));
 
+    appointmentValidator.validatePatientPenalties(request.patientId());
+
     appointmentValidator.validateDoctorAvailability(
         null,
         request.doctorId(),
