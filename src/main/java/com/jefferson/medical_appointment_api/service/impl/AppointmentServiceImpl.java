@@ -1,6 +1,12 @@
 package com.jefferson.medical_appointment_api.service.impl;
 
+import static com.jefferson.medical_appointment_api.repository.AppointmentSpecification.appointmentDateTimeBetween;
+import static com.jefferson.medical_appointment_api.repository.AppointmentSpecification.hasDoctorId;
+import static com.jefferson.medical_appointment_api.repository.AppointmentSpecification.hasPatientId;
+import static com.jefferson.medical_appointment_api.repository.AppointmentSpecification.hasStatus;
+
 import com.jefferson.medical_appointment_api.dto.request.AppointmentRequest;
+import com.jefferson.medical_appointment_api.dto.request.RescheduleAppointmentRequest;
 import com.jefferson.medical_appointment_api.dto.response.AppointmentResponse;
 import com.jefferson.medical_appointment_api.dto.response.AvailableSlotResponse;
 import com.jefferson.medical_appointment_api.entity.AppointmentEntity;
@@ -22,6 +28,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -47,11 +54,13 @@ public class AppointmentServiceImpl implements AppointmentService {
         .orElseThrow(() -> new ResourceNotFoundException("Patient", "id", request.patientId()));
 
     appointmentValidator.validateDoctorAvailability(
+        null,
         request.doctorId(),
         request.appointmentDateTime()
     );
 
     appointmentValidator.validatePatientConflict(
+        null,
         request.patientId(),
         request.doctorId(),
         request.appointmentDateTime()
@@ -114,5 +123,63 @@ public class AppointmentServiceImpl implements AppointmentService {
       LocalDateTime cancellationDateTime) {
 
     return cancellationDateTime.isAfter(appointmentDateTime.minusHours(2));
+  }
+
+  @Override
+  public List<AppointmentResponse> getAppointments(
+      Long doctorId,
+      Long patientId,
+      AppointmentStatus status,
+      LocalDate startDate,
+      LocalDate endDate) {
+
+    LocalDateTime startDateTime = startDate != null ? startDate.atStartOfDay() : null;
+    LocalDateTime endDateTime = endDate != null ? endDate.atTime(23, 59, 59) : null;
+
+    Specification<AppointmentEntity> specification = Specification.allOf(
+        hasDoctorId(doctorId),
+        hasPatientId(patientId),
+        hasStatus(status),
+        appointmentDateTimeBetween(startDateTime, endDateTime)
+    );
+
+    return appointmentRepository.findAll(specification)
+        .stream()
+        .map(appointmentMapper::toResponse)
+        .toList();
+  }
+
+  @Override
+  public AppointmentResponse rescheduleAppointment(
+      Long appointmentId,
+      RescheduleAppointmentRequest request) {
+
+    AppointmentEntity appointment = appointmentRepository.findById(appointmentId)
+        .orElseThrow(() -> new ResourceNotFoundException("Appointment", "id", appointmentId));
+
+    if (appointment.getStatus() != AppointmentStatus.PROGRAMMED) {
+      throw new BusinessException("Only programmed appointments can be rescheduled.");
+    }
+
+    appointmentValidator.validateAppointmentDateTime(request.appointmentDateTime());
+
+    appointmentValidator.validateDoctorAvailability(
+        appointmentId,
+        appointment.getDoctor().getId(),
+        request.appointmentDateTime()
+    );
+
+    appointmentValidator.validatePatientConflict(
+        appointmentId,
+        appointment.getPatient().getId(),
+        appointment.getDoctor().getId(),
+        request.appointmentDateTime()
+    );
+
+    appointment.setAppointmentDateTime(request.appointmentDateTime());
+
+    AppointmentEntity updatedAppointment = appointmentRepository.save(appointment);
+
+    return appointmentMapper.toResponse(updatedAppointment);
   }
 }

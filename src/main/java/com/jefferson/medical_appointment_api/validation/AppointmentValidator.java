@@ -40,12 +40,23 @@ public class AppointmentValidator {
     validateWeekdaySchedule(appointmentTime);
   }
 
-  public void validateDoctorAvailability(Long doctorId, LocalDateTime appointmentDateTime) {
-    boolean exists = appointmentRepository.existsByDoctorIdAndAppointmentDateTimeAndStatus(
+  public void validateDoctorAvailability(
+      Long appointmentId,
+      Long doctorId,
+      LocalDateTime appointmentDateTime) {
+
+    boolean exists = appointmentId == null
+        ? appointmentRepository.existsByDoctorIdAndAppointmentDateTimeAndStatus(
         doctorId,
         appointmentDateTime,
         AppointmentStatus.PROGRAMMED
-    );
+    )
+        : appointmentRepository.existsByDoctorIdAndAppointmentDateTimeAndStatusAndIdNot(
+            doctorId,
+            appointmentDateTime,
+            AppointmentStatus.PROGRAMMED,
+            appointmentId
+        );
 
     if (exists) {
       throw new BusinessException("The doctor already has an appointment at this time.");
@@ -53,16 +64,25 @@ public class AppointmentValidator {
   }
 
   public void validatePatientConflict(
+      Long appointmentId,
       Long patientId,
       Long doctorId,
       LocalDateTime appointmentDateTime) {
 
-    boolean exists = appointmentRepository.existsByPatientIdAndDoctorIdAndAppointmentDateTimeAndStatus(
+    boolean exists = appointmentId == null
+        ? appointmentRepository.existsByPatientIdAndDoctorIdAndAppointmentDateTimeAndStatus(
         patientId,
         doctorId,
         appointmentDateTime,
         AppointmentStatus.PROGRAMMED
-    );
+    )
+        : appointmentRepository.existsByPatientIdAndDoctorIdAndAppointmentDateTimeAndStatusAndIdNot(
+            patientId,
+            doctorId,
+            appointmentDateTime,
+            AppointmentStatus.PROGRAMMED,
+            appointmentId
+        );
 
     if (exists) {
       throw new BusinessException("The patient already has an appointment with this doctor at this time.");
