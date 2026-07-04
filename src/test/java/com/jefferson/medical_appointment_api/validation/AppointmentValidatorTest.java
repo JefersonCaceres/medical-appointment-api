@@ -195,4 +195,5 @@ class AppointmentValidatorTest {
 
     assertDoesNotThrow(() -> appointmentValidator.validatePatientPenalties(patientId));
   }
+
 }

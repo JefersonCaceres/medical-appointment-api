@@ -10,10 +10,12 @@ import static org.mockito.Mockito.when;
 import com.jefferson.medical_appointment_api.dto.request.AppointmentRequest;
 import com.jefferson.medical_appointment_api.dto.request.RescheduleAppointmentRequest;
 import com.jefferson.medical_appointment_api.dto.response.AppointmentResponse;
+import com.jefferson.medical_appointment_api.dto.response.AvailableSlotResponse;
 import com.jefferson.medical_appointment_api.entity.AppointmentEntity;
 import com.jefferson.medical_appointment_api.entity.MedicalDoctorEntity;
 import com.jefferson.medical_appointment_api.entity.PatientEntity;
 import com.jefferson.medical_appointment_api.enums.AppointmentStatus;
+import com.jefferson.medical_appointment_api.exception.BusinessException;
 import com.jefferson.medical_appointment_api.exception.ResourceNotFoundException;
 import com.jefferson.medical_appointment_api.mapper.AppointmentMapper;
 import com.jefferson.medical_appointment_api.repository.AppointmentRepository;
@@ -23,7 +25,9 @@ import com.jefferson.medical_appointment_api.repository.PenaltyRepository;
 import com.jefferson.medical_appointment_api.service.impl.AppointmentServiceImpl;
 import com.jefferson.medical_appointment_api.validation.AppointmentAvailability;
 import com.jefferson.medical_appointment_api.validation.AppointmentValidator;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -269,5 +273,99 @@ class AppointmentServiceImplTest {
         ResourceNotFoundException.class,
         () -> service.rescheduleAppointment(99L, request)
     );
+  }
+
+  @Test
+  void cancelAppointment_shouldThrowExceptionWhenAppointmentIsAlreadyCancelled() {
+    AppointmentEntity appointment = AppointmentEntity.builder()
+        .id(1L)
+        .status(AppointmentStatus.CANCELLED)
+        .build();
+
+    when(appointmentRepository.findById(1L)).thenReturn(Optional.of(appointment));
+
+    assertThrows(
+        BusinessException.class,
+        () -> service.cancelAppointment(1L)
+    );
+  }
+
+  @Test
+  void rescheduleAppointment_shouldThrowExceptionWhenAppointmentIsCancelled() {
+    RescheduleAppointmentRequest request = new RescheduleAppointmentRequest(
+        LocalDateTime.of(2026, 7, 6, 11, 0)
+    );
+
+    AppointmentEntity appointment = AppointmentEntity.builder()
+        .id(1L)
+        .status(AppointmentStatus.CANCELLED)
+        .build();
+
+    when(appointmentRepository.findById(1L)).thenReturn(Optional.of(appointment));
+
+    assertThrows(
+        BusinessException.class,
+        () -> service.rescheduleAppointment(1L, request)
+    );
+  }
+
+  @Test
+  void getAvailableSlots_shouldReturnAvailableSlots() {
+    LocalDate startDate = LocalDate.of(2026, 7, 6);
+    LocalDate endDate = LocalDate.of(2026, 7, 6);
+
+    List<AvailableSlotResponse> slots = List.of(
+        new AvailableSlotResponse(
+            LocalDateTime.of(2026, 7, 6, 8, 0),
+            LocalDateTime.of(2026, 7, 6, 8, 30)
+        )
+    );
+
+    when(medicalDoctorRepository.findById(1L))
+        .thenReturn(Optional.of(MedicalDoctorEntity.builder().id(1L).build()));
+
+    when(appointmentAvailability.generateAvailableSlots(1L, startDate, endDate))
+        .thenReturn(slots);
+
+    List<AvailableSlotResponse> result = service.getAvailableSlots(1L, startDate, endDate);
+
+    assertEquals(1, result.size());
+    assertEquals(LocalDateTime.of(2026, 7, 6, 8, 0), result.getFirst().startDateTime());
+  }
+
+  @Test
+  void getAppointments_shouldReturnAppointmentsWithFilters() {
+    AppointmentEntity appointment = AppointmentEntity.builder()
+        .id(1L)
+        .appointmentDateTime(LocalDateTime.of(2026, 7, 6, 10, 0))
+        .status(AppointmentStatus.PROGRAMMED)
+        .build();
+
+    AppointmentResponse response = new AppointmentResponse(
+        1L,
+        1L,
+        "Juan Pérez",
+        1L,
+        "Dra. María González",
+        appointment.getAppointmentDateTime(),
+        AppointmentStatus.PROGRAMMED,
+        null
+    );
+
+    when(appointmentRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class)))
+        .thenReturn(List.of(appointment));
+
+    when(appointmentMapper.toResponse(appointment)).thenReturn(response);
+
+    List<AppointmentResponse> result = service.getAppointments(
+        1L,
+        1L,
+        AppointmentStatus.PROGRAMMED,
+        LocalDate.of(2026, 7, 1),
+        LocalDate.of(2026, 7, 31)
+    );
+
+    assertEquals(1, result.size());
+    assertEquals(AppointmentStatus.PROGRAMMED, result.getFirst().status());
   }
 }
